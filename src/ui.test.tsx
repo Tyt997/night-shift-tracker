@@ -1,0 +1,30 @@
+// @vitest-environment jsdom
+import {it,expect} from 'vitest';
+import {screen,waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import {KEY,localDate} from './domain';
+it('records and undoes a set, accepts body inputs, and shows an honest average',async()=>{
+ localStorage.clear();document.body.innerHTML='<div id="root"></div>';window.scrollTo=()=>{};
+ await import('./main');const user=userEvent.setup();
+ const set=await screen.findByRole('button',{name:'杠铃卧推 第1组标记完成'});
+ await user.type(screen.getByLabelText('杠铃卧推 第1组重量'),'60');
+ await user.type(screen.getByLabelText('杠铃卧推 第1组次数'),'8');
+ await user.click(set);
+ await waitFor(()=>expect(JSON.parse(localStorage.getItem(KEY)!).logs[localDate()].sets['1-0-0'].done).toBe(true));
+ expect(JSON.parse(localStorage.getItem(KEY)!).logs[localDate()].weight).toBeUndefined();
+ await user.click(screen.getByRole('button',{name:'杠铃卧推 第1组撤销完成'}));
+ await waitFor(()=>expect(JSON.parse(localStorage.getItem(KEY)!).logs[localDate()].sets['1-0-0'].done).toBe(false));
+ const cardio=screen.getByLabelText('今日有氧分钟');await user.clear(cardio);await user.type(cardio,'18');await user.tab();
+ await user.click(screen.getByRole('checkbox',{name:'有氧完成'}));
+ expect(JSON.parse(localStorage.getItem(KEY)!).logs[localDate()].cardioMinutes).toBe(18);
+ expect(JSON.parse(localStorage.getItem(KEY)!).logs[localDate()].cardioDone).toBe(true);
+ expect(screen.getByText(/训练前餐/)).toBeTruthy();
+ await user.type(screen.getByLabelText('体重'),'184.5');await user.tab();
+ await waitFor(()=>expect(JSON.parse(localStorage.getItem(KEY)!).logs[localDate()].weight).toBe(184.5));
+ await user.click(screen.getByRole('button',{name:'记录'}));
+ expect(await screen.findByText('184.5')).toBeTruthy();
+ expect(screen.getByText(/1 天实际记录/)).toBeTruthy();
+ await user.click(screen.getByRole('button',{name:'我的'}));
+ const height=screen.getByLabelText('身高');await user.clear(height);await user.type(height,'182');await user.tab();
+ expect(JSON.parse(localStorage.getItem(KEY)!).profile.height).toBe(182);
+});
